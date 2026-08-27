@@ -15,6 +15,8 @@
     playbackStopRequested: false,
   };
 
+  const recordState = { active: false, recorder: null, chunks: [], stream: null };
+
   // ---------- helpers ----------
   const $ = (sel) => document.querySelector(sel);
   const $$ = (sel) => Array.from(document.querySelectorAll(sel));
@@ -54,6 +56,7 @@
     if (name === "history") $("#nav-history").classList.add("active");
     if (name === "history") loadHistory();
     stopAllSpeech();
+    if (name !== "call" && recordState.active) stopRecording();
   }
 
   // ---------- speech: text to speech ----------
@@ -170,6 +173,119 @@
     };
 
     try { recognizer.start(); } catch (e) { /* already started */ }
+  }
+
+  // ---------- video recording ----------
+  function updateRecordButton() {
+    const btn = $("#btn-record");
+    if (!btn) return;
+    btn.classList.toggle("recording", recordState.active);
+    btn.innerHTML = recordState.active ? "⏹ Stop &amp; Save" : "⏺ Record";
+  }
+
+  async function toggleRecording() {
+    if (recordState.active) {
+      stopRecording();
+      return;
+    }
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
+      showToast("Screen recording isn't supported in this browser — try Chrome or Edge.");
+      return;
+    }
+    let stream;
+    try {
+      stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+    } catch (e) {
+      if (e.name !== "NotAllowedError") showToast("Could not start recording: " + e.message);
+      return;
+    }
+    recordState.stream = stream;
+    recordState.chunks = [];
+    const mimeType = ["video/webm;codecs=vp9,opus", "video/webm"]
+      .find((t) => window.MediaRecorder && MediaRecorder.isTypeSupported(t));
+    recordState.recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+    recordState.recorder.addEventListener("dataavailable", (e) => {
+      if (e.data && e.data.size) recordState.chunks.push(e.data);
+    });
+    recordState.recorder.addEventListener("stop", saveRecording);
+    stream.getVideoTracks()[0].addEventListener("ended", () => {
+      if (recordState.active) stopRecording();
+    });
+    recordState.recorder.start();
+    recordState.active = true;
+    updateRecordButton();
+    showToast("Recording started — choose “This Tab” and enable “Share tab audio” to capture the voice.", 5000);
+  }
+
+  function stopRecording() {
+    if (recordState.recorder && recordState.recorder.state !== "inactive") recordState.recorder.stop();
+    if (recordState.stream) recordState.stream.getTracks().forEach((t) => t.stop());
+    recordState.active = false;
+    updateRecordButton();
+  }
+
+  function saveRecording() {
+    if (!recordState.chunks.length) return;
+    const blob = new Blob(recordState.chunks, { type: "video/webm" });
+    const url = URL.createObjectURL(blob);
+    const name = (state.session ? state.session.hotel_name : "call").replace(/[^a-z0-9]+/gi, "-");
+    const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `call-${name}-${stamp}.webm`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+    recordState.chunks = [];
+    showToast("Recording saved to your Downloads folder.");
+  }
+
+  // ---------- API key setup ----------
+  async function checkConfig() {
+    try {
+      const status = await api("/api/config");
+      if (!status.configured) openKeyModal(false);
+    } catch (e) { /* ignore — user can still open settings manually */ }
+  }
+
+  function openKeyModal(dismissible) {
+    $("#key-modal").hidden = false;
+    $("#key-input").value = "";
+    $("#key-error").hidden = true;
+    $("#btn-close-key-modal").hidden = !dismissible;
+    $("#key-input").focus();
+  }
+
+  function closeKeyModal() {
+    $("#key-modal").hidden = true;
+  }
+
+  async function saveKey() {
+    const input = $("#key-input");
+    const btn = $("#btn-save-key");
+    const spinner = btn.querySelector(".spinner");
+    const errEl = $("#key-error");
+    const key = input.value.trim();
+    errEl.hidden = true;
+    if (!key) {
+      errEl.textContent = "Paste your API key first.";
+      errEl.hidden = false;
+      return;
+    }
+    btn.disabled = true;
+    spinner.hidden = false;
+    try {
+      await api("/api/config", { method: "POST", body: JSON.stringify({ api_key: key }) });
+      closeKeyModal();
+      showToast("API key saved.");
+    } catch (e) {
+      errEl.textContent = e.message;
+      errEl.hidden = false;
+    } finally {
+      btn.disabled = false;
+      spinner.hidden = true;
+    }
   }
 
   // ---------- options / setup ----------
@@ -426,10 +542,18 @@
       showToast("Could not load options: " + e.message, 5000);
     }
     setView("setup");
+    checkConfig();
 
     $("#nav-new").addEventListener("click", () => setView("setup"));
     $("#nav-history").addEventListener("click", () => setView("history"));
+    $("#nav-settings").addEventListener("click", () => openKeyModal(true));
+    $("#btn-close-key-modal").addEventListener("click", closeKeyModal);
+    $("#btn-save-key").addEventListener("click", saveKey);
+    $("#key-input").addEventListener("keydown", (e) => {
+      if (e.key === "Enter") { e.preventDefault(); saveKey(); }
+    });
     $("#btn-start").addEventListener("click", startCall);
+    $("#btn-record").addEventListener("click", toggleRecording);
 
     $("#btn-mic").addEventListener("click", toggleMic);
     $("#btn-send").addEventListener("click", sendCurrentInput);

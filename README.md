@@ -33,6 +33,9 @@ have it read aloud to you later.
   line.
 - **Difficulty levels** — friendly / neutral / tough — controls how easily
   the manager persona is persuaded and how many objections they raise.
+- **Record a call as video** — capture the on-screen conversation (and the
+  spoken audio, if you share tab audio) and save it as a video file on your
+  own machine. See [Recording a call](#recording-a-call) below.
 
 ## How voice works
 
@@ -54,29 +57,112 @@ Claude is used for the actual intelligence: playing the manager persona,
 inventing each scenario (hotel name, manager name, situation), and
 on-demand translation of any line between English and Spanish.
 
-## Setup
+## Install on a Mac (no coding experience needed)
+
+These steps get the app running on a Mac from scratch — you don't need to
+know how to code, just copy/paste each command into Terminal.
+
+1. **Open Terminal.** Press `Cmd + Space`, type `Terminal`, and press
+   `Return`. A window with a text prompt will open — this is where you'll
+   paste the commands below, pressing `Return` after each one.
+
+2. **Install Homebrew** (a package installer for Mac). Paste this and press
+   `Return`, then follow any on-screen instructions — it may ask for your
+   Mac password (nothing will appear on screen as you type it, that's
+   normal; just type it and press `Return`):
+
+   ```bash
+   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+   ```
+
+   When it finishes, it may print 1-2 more commands under "Next steps" —
+   copy and run those too, so Homebrew is usable in your Terminal.
+
+3. **Install git and Python** using Homebrew:
+
+   ```bash
+   brew install git python
+   ```
+
+4. **Download this app.** This puts a copy in your home folder:
+
+   ```bash
+   git clone https://github.com/orancummins/translate.git ~/sales-call-trainer
+   cd ~/sales-call-trainer
+   ```
+
+5. **Run it:**
+
+   ```bash
+   ./run.sh
+   ```
+
+   The first run takes a minute or two while it sets things up. When it's
+   done, it prints `Open http://localhost:5050`.
+
+6. **Open the app.** Go to that address in your web browser (Chrome or Edge
+   work best, for the voice features). The first time it loads, it'll ask
+   you to paste in a Claude API key — see [Getting an API
+   key](#getting-an-api-key) below for where to get one. Paste it in and
+   click **Save & Continue**; you only have to do this once.
+
+Whenever you want to use the app again later, open Terminal, run
+`cd ~/sales-call-trainer && ./run.sh`, and open
+`http://localhost:5050` again. Running `./run.sh` also installs any updates
+to the app's dependencies and restarts it if it's already running, so it's
+safe to run any time.
+
+### Getting an API key
+
+The app needs a Claude (Anthropic) API key to run the manager roleplay and
+translations. This is a separate account from a Claude.ai chat
+subscription, and API usage is billed separately (typically a few cents per
+practice call).
+
+1. Go to [platform.claude.com/settings/keys](https://platform.claude.com/settings/keys)
+   and sign up or log in.
+2. In the top-left workspace switcher, pick a workspace (use the "Default
+   Workspace" if you don't have others).
+3. Click **Create Key**, give it a name, and copy the key it shows you
+   (starts with `sk-ant-...`) — it's only shown once.
+4. Paste it into the app when prompted (or click the ⚙ icon in the app's
+   top bar any time to update it later). The key is saved only in a local
+   `.env` file on your own machine — it isn't sent anywhere except
+   Anthropic's API.
+
+## Manual setup (for developers)
 
 ```bash
 pip install -r requirements.txt
-
-# Auth: either export a key, or use `ant auth login` (see the Anthropic CLI)
-export ANTHROPIC_API_KEY=sk-ant-...
-
 python app.py
 ```
 
-Then open `http://localhost:5000` (or `http://<your-machine-ip>:5000` from
-your phone on the same network — but see the HTTPS note above for voice
-input away from `localhost`).
+Then open `http://localhost:5050` and paste your API key when prompted, or
+set `ANTHROPIC_API_KEY` in your environment or in a `.env` file before
+starting the app.
 
 ### Configuration
 
 | Env var | Default | Purpose |
 |---|---|---|
-| `ANTHROPIC_API_KEY` | — | Anthropic API credentials |
+| `ANTHROPIC_API_KEY` | — | Anthropic API credentials (or paste it into the app on first launch) |
 | `CLAUDE_MODEL` | `claude-opus-5` | Model used for the manager roleplay & scenario generation |
 | `CLAUDE_TRANSLATE_MODEL` | `claude-haiku-4-5` | Cheaper/faster model used only for the optional line translations |
-| `PORT` | `5000` | Port Flask listens on |
+| `PORT` | `5050` | Port Flask listens on |
+
+## Recording a call
+
+Click **⏺ Record** during a call to save it as a video. Your browser will
+ask you to pick what to share — choose **This Tab**, and turn on **Share
+tab audio** so the manager's spoken voice is captured, not just the text.
+Click **⏹ Stop & Save** (or use the browser's own "Stop sharing" control)
+when you're done; the video downloads as a `.webm` file to your Downloads
+folder, entirely on your own machine.
+
+This uses the browser's built-in screen-recording APIs
+(`getDisplayMedia`/`MediaRecorder`), so it works best in Chrome or Edge.
+Safari's support is limited, and it can't capture tab audio at all in some
+versions.
 
 ## Deploying for "on the go" use
 

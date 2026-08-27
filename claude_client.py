@@ -3,13 +3,16 @@ and short message translation."""
 
 import json
 import os
+from pathlib import Path
 
 import anthropic
+from dotenv import set_key
 
 from personas import DIFFICULTY_BY_ID, HOTEL_TYPE_BY_ID, LOCALE_BY_ID, MANAGER_PERSONA_BY_ID
 
 MODEL = os.environ.get("CLAUDE_MODEL", "claude-opus-5")
 TRANSLATE_MODEL = os.environ.get("CLAUDE_TRANSLATE_MODEL", "claude-haiku-4-5")
+ENV_PATH = Path(__file__).parent / ".env"
 
 _client = None
 
@@ -19,6 +22,19 @@ def client():
     if _client is None:
         _client = anthropic.Anthropic()
     return _client
+
+
+def is_configured():
+    return bool(os.environ.get("ANTHROPIC_API_KEY"))
+
+
+def validate_and_store_key(api_key):
+    """Raise if the key doesn't work; otherwise persist it to .env and activate it."""
+    global _client
+    anthropic.Anthropic(api_key=api_key).models.list(limit=1)
+    set_key(str(ENV_PATH), "ANTHROPIC_API_KEY", api_key)
+    os.environ["ANTHROPIC_API_KEY"] = api_key
+    _client = None
 
 
 def _language_name(language):

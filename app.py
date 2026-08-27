@@ -35,6 +35,28 @@ def api_options():
     return jsonify(options_payload())
 
 
+@app.get("/api/config")
+def api_get_config():
+    return jsonify({"configured": claude_client.is_configured()})
+
+
+@app.post("/api/config")
+def api_set_config():
+    payload = request.get_json(silent=True) or {}
+    api_key = (payload.get("api_key") or "").strip()
+    if not api_key:
+        return error("API key is required")
+    try:
+        claude_client.validate_and_store_key(api_key)
+    except Exception as exc:  # noqa: BLE001 - surfaced to the caller as a clean error
+        body = getattr(exc, "body", None)
+        message = (
+            body.get("error", {}).get("message") if isinstance(body, dict) else None
+        ) or str(exc)
+        return error(f"That key didn't work: {message}", 400)
+    return jsonify({"ok": True})
+
+
 @app.get("/api/sessions")
 def api_list_sessions():
     return jsonify(db.list_sessions())
