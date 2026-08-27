@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0e2a24">
+<title>Sales Call Trainer</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>%F0%9F%93%9E</text></svg>">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+<div id="app">
+
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark">TA</span>
+      <div class="brand-text">
+        <strong>Sales Call Trainer</strong>
+        <span>Hotel manager roleplay practice</span>
+      </div>
+    </div>
+    <nav class="topnav">
+      <button class="nav-btn" data-view="setup" id="nav-new">New Call</button>
+      <button class="nav-btn" data-view="history" id="nav-history">History</button>
+    </nav>
+  </header>
+
+  <main id="views">
+
+    <!-- SETUP VIEW -->
+    <section class="view" id="view-setup">
+      <div class="card setup-card">
+        <h1>Start a practice call</h1>
+        <p class="muted">Pick a scenario. Claude will play the hotel manager and stay in character for the whole call.</p>
+
+        <div class="field">
+          <label for="opt-locale">Language &amp; locale</label>
+          <select id="opt-locale"></select>
+        </div>
+
+        <div class="field">
+          <label for="opt-hotel">Type of hotel</label>
+          <select id="opt-hotel"></select>
+          <p class="hint" id="hint-hotel"></p>
+        </div>
+
+        <div class="field">
+          <label for="opt-persona">Manager persona</label>
+          <select id="opt-persona"></select>
+          <p class="hint" id="hint-persona"></p>
+        </div>
+
+        <div class="field">
+          <label for="opt-difficulty">Difficulty</label>
+          <div class="segmented" id="opt-difficulty"></div>
+        </div>
+
+        <button class="btn primary big" id="btn-start">
+          <span class="btn-label">Start Call</span>
+          <span class="spinner" hidden></span>
+        </button>
+      </div>
+    </section>
+
+    <!-- CALL VIEW -->
+    <section class="view" id="view-call">
+      <div class="brief" id="call-brief">
+        <button class="brief-toggle" id="brief-toggle">
+          <span id="brief-title">Scenario</span>
+          <span class="chev">▾</span>
+        </button>
+        <div class="brief-body" id="brief-body"></div>
+      </div>
+
+      <div class="chat" id="chat-log"></div>
+
+      <div class="composer">
+        <div class="composer-row">
+          <button class="icon-btn" id="btn-mic" title="Speak your line" aria-label="Record voice">
+            <svg viewBox="0 0 24 24" width="22" height="22"><path fill="currentColor" d="M12 14a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v5a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2Z"/></svg>
+          </button>
+          <textarea id="input-text" rows="1" placeholder="Type your line, or tap the mic…"></textarea>
+          <button class="icon-btn send" id="btn-send" title="Send" aria-label="Send">
+            <svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M3 20v-6l8-2-8-2V4l19 8Z"/></svg>
+          </button>
+        </div>
+        <div class="composer-controls">
+          <label class="switch">
+            <input type="checkbox" id="opt-autoplay" checked>
+            <span>Auto-speak manager replies</span>
+          </label>
+          <span class="rec-indicator" id="rec-indicator" hidden>● Listening…</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- HISTORY VIEW -->
+    <section class="view" id="view-history">
+      <div class="card">
+        <h1>Saved conversations</h1>
+        <p class="muted">Read back the transcript or replay it out loud.</p>
+        <div id="history-list" class="history-list"></div>
+        <p class="empty-state" id="history-empty" hidden>No saved calls yet — start one from “New Call”.</p>
+      </div>
+    </section>
+
+    <!-- PLAYBACK VIEW -->
+    <section class="view" id="view-playback">
+      <div class="brief" id="playback-brief">
+        <button class="brief-toggle" id="playback-brief-toggle">
+          <span id="playback-title">Scenario</span>
+          <span class="chev">▾</span>
+        </button>
+        <div class="brief-body" id="playback-brief-body"></div>
+      </div>
+      <div class="chat" id="playback-log"></div>
+      <div class="playback-bar">
+        <button class="btn primary" id="btn-play-all">▶ Play whole conversation</button>
+        <button class="btn ghost" id="btn-stop-all" hidden>■ Stop</button>
+        <button class="btn danger ghost" id="btn-delete-session">Delete</button>
+      </div>
+    </section>
+
+  </main>
+
+  <div id="toast" class="toast" hidden></div>
+</div>
+
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
