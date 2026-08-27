@@ -7,6 +7,12 @@ practice pitching, handling objections, and asking questions, by voice or
 by text. Conversations are saved so you can read the transcript back or
 have it read aloud to you later.
 
+## Screenshots
+
+| Start a call | History | Transcript |
+|---|---|---|
+| ![Start a practice call](docs/screenshots/setup.png) | ![Saved conversations](docs/screenshots/history.png) | ![Call transcript](docs/screenshots/transcript.png) |
+
 ## Features
 
 - **Text or voice input**, in English or Spanish, using the browser's
