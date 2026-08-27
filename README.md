@@ -53,6 +53,15 @@ offline-ish on most phones, but voice quality and language coverage depend
 on the voices installed on the device/browser, and `SpeechRecognition`
 needs a secure context (HTTPS, or `localhost` during development).
 
+The app avoids picking one of the "novelty" system voices your OS ships
+(e.g. macOS's robotic `Albert` or `Zarvox`) and prefers normal-sounding
+ones instead. On a Mac, for noticeably better quality than the default
+system voice, install one of Apple's higher-quality voices for free: **☰
+menu → System Settings → Accessibility → Spoken Content → System Voice →
+Manage Voices…**, then download an "Enhanced" or "Premium" voice for your
+language (e.g. Ava or Zoe for English) — the app will prefer those
+automatically once installed.
+
 Claude is used for the actual intelligence: playing the manager persona,
 inventing each scenario (hotel name, manager name, situation), and
 on-demand translation of any line between English and Spanish.

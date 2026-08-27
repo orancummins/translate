@@ -71,14 +71,58 @@
     window.speechSynthesis.onvoiceschanged = refreshVoices;
   }
 
+  // macOS/iOS ship a pile of novelty "fun" voices (Albert, Zarvox, Bubbles...)
+  // alongside the normal ones. speechSynthesis.getVoices() has no quality
+  // signal, so without this exclusion + preference list, picking "the first
+  // voice that matches the language" can land on one of these instead of a
+  // normal-sounding voice, which is what "rough"/robotic playback usually is.
+  const NOVELTY_VOICE_NAMES = new Set([
+    "Albert", "Bad News", "Bahh", "Bells", "Boing", "Bubbles", "Cellos",
+    "Deranged", "Fred", "Good News", "Hysterical", "Jester", "Junior",
+    "Kathy", "Organ", "Pipe Organ", "Princess", "Ralph", "Superstar",
+    "Trinoids", "Whisper", "Wobble", "Zarvox",
+  ]);
+  const PREFERRED_VOICE_NAMES = {
+    "en-US": ["Ava", "Samantha", "Nicky", "Zoe", "Evan", "Eddy (English (United States))"],
+    "en-GB": ["Kate", "Serena", "Daniel", "Oliver"],
+    "en-AU": ["Karen", "Lee"],
+    "en-IE": ["Moira"],
+    "en-ZA": ["Tessa"],
+    "es-ES": ["Mónica", "Paulina", "Isabela"],
+    "es-MX": ["Paulina", "Juan", "Angelica"],
+    "es-AR": ["Diego"],
+    "es-CO": ["Soledad"],
+  };
+
+  function scoreVoice(v, langCode) {
+    const voiceLang = (v.lang || "").toLowerCase();
+    const target = langCode.toLowerCase();
+    let score;
+    if (voiceLang === target) score = 100;
+    else if (voiceLang.startsWith(target.split("-")[0])) score = 50;
+    else return -Infinity;
+
+    if (NOVELTY_VOICE_NAMES.has(v.name)) score -= 1000;
+    if (/enhanced|premium/i.test(v.name)) score += 40;
+
+    const baseName = v.name.split(" (")[0];
+    const preferred = PREFERRED_VOICE_NAMES[langCode] || [];
+    const rank = preferred.indexOf(baseName);
+    if (rank !== -1) score += (preferred.length - rank) * 10;
+
+    return score;
+  }
+
   function pickVoice(langCode) {
     if (!cachedVoices.length) refreshVoices();
     if (!cachedVoices.length) return null;
-    const exact = cachedVoices.find((v) => v.lang && v.lang.toLowerCase() === langCode.toLowerCase());
-    if (exact) return exact;
-    const prefix = langCode.split("-")[0];
-    const partial = cachedVoices.find((v) => v.lang && v.lang.toLowerCase().startsWith(prefix));
-    return partial || null;
+    let best = null;
+    let bestScore = -Infinity;
+    for (const v of cachedVoices) {
+      const score = scoreVoice(v, langCode);
+      if (score > bestScore) { bestScore = score; best = v; }
+    }
+    return bestScore > -Infinity ? best : null;
   }
 
   function speak(text, langCode, { pitch = 1 } = {}) {
