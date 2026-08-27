@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/usr/bingit pull/env bash
 # Install dependencies and (re)start the sales call trainer app.
 # Restarts a currently-running instance instead of erroring out.
 set -euo pipefail

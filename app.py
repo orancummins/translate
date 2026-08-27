@@ -2,7 +2,10 @@
 
 import os
 
+from dotenv import load_dotenv
 from flask import Flask, jsonify, render_template, request
+
+load_dotenv()
 
 import claude_client
 import db
