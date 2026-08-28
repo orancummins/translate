@@ -224,7 +224,7 @@
     const btn = $("#btn-record");
     if (!btn) return;
     btn.classList.toggle("recording", recordState.active);
-    btn.innerHTML = recordState.active ? "⏹ Stop &amp; Save" : "⏺ Record";
+    btn.querySelector(".record-label").textContent = recordState.active ? "Stop & Save" : "Record";
   }
 
   async function toggleRecording() {
@@ -536,7 +536,7 @@
             <span>${s.message_count} msgs</span>
           </div>
         </div>
-        <span class="chev-right">›</span>
+        <span class="chev-right"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></span>
       </div>
     `).join("");
     $$(".history-item").forEach((el) => {

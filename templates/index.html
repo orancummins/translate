@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0e2a24">
 <title>Sales Call Trainer</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>%F0%9F%93%9E</text></svg>">
+<link rel="icon" href="{{ url_for('static', filename='tripadvisor-icon.png') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
@@ -13,7 +13,7 @@
 
   <header class="topbar">
     <div class="brand">
-      <span class="brand-mark">TA</span>
+      <img class="brand-mark" src="{{ url_for('static', filename='tripadvisor-icon.png') }}" alt="" width="36" height="36">
       <div class="brand-text">
         <strong>Sales Call Trainer</strong>
         <span>Hotel manager roleplay practice</span>
@@ -22,7 +22,9 @@
     <nav class="topnav">
       <button class="nav-btn" data-view="setup" id="nav-new">New Call</button>
       <button class="nav-btn" data-view="history" id="nav-history">History</button>
-      <button class="nav-btn icon-only" id="nav-settings" title="API key settings" aria-label="API key settings">⚙</button>
+      <button class="nav-btn icon-only" id="nav-settings" title="API key settings" aria-label="API key settings">
+        <svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M19.14 12.94a7.43 7.43 0 0 0 .06-.94 7.43 7.43 0 0 0-.06-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.3 7.3 0 0 0-1.62-.94l-.36-2.54a.5.5 0 0 0-.5-.42h-3.84a.5.5 0 0 0-.5.42l-.36 2.54c-.59.24-1.13.56-1.62.94l-2.39-.96a.5.5 0 0 0-.6.22L2.71 8.84a.5.5 0 0 0 .12.64l2.03 1.58a7.14 7.14 0 0 0 0 1.88l-2.03 1.58a.5.5 0 0 0-.12.64l1.92 3.32c.14.24.42.32.66.22l2.39-.96c.49.38 1.03.7 1.62.94l.36 2.54c.05.24.26.42.5.42h3.84c.24 0 .45-.18.5-.42l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.24.1.52.02.66-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58ZM12 15.6A3.6 3.6 0 1 1 12 8.4a3.6 3.6 0 0 1 0 7.2Z"/></svg>
+      </button>
     </nav>
   </header>
 
@@ -31,6 +33,7 @@
     <!-- SETUP VIEW -->
     <section class="view" id="view-setup">
       <div class="card setup-card">
+        <img class="brand-kicker" src="{{ url_for('static', filename='tripadvisor-wordmark-white.png') }}" alt="Tripadvisor" height="14">
         <h1>Start a practice call</h1>
         <p class="muted">Pick a scenario. Claude will play the hotel manager and stay in character for the whole call.</p>
 
@@ -68,7 +71,7 @@
       <div class="brief" id="call-brief">
         <button class="brief-toggle" id="brief-toggle">
           <span id="brief-title">Scenario</span>
-          <span class="chev">▾</span>
+          <span class="chev"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></span>
         </button>
         <div class="brief-body" id="brief-body"></div>
       </div>
@@ -90,7 +93,9 @@
             <input type="checkbox" id="opt-autoplay" checked>
             <span>Auto-speak manager replies</span>
           </label>
-          <button class="record-toggle" id="btn-record" title="Record this call as a video" type="button">⏺ Record</button>
+          <button class="record-toggle" id="btn-record" title="Record this call as a video" type="button">
+            <span class="record-dot" aria-hidden="true"></span><span class="record-label">Record</span>
+          </button>
           <span class="rec-indicator" id="rec-indicator" hidden>● Listening…</span>
         </div>
       </div>
@@ -111,7 +116,7 @@
       <div class="brief" id="playback-brief">
         <button class="brief-toggle" id="playback-brief-toggle">
           <span id="playback-title">Scenario</span>
-          <span class="chev">▾</span>
+          <span class="chev"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></span>
         </button>
         <div class="brief-body" id="playback-brief-body"></div>
       </div>
@@ -130,6 +135,9 @@
   <div id="key-modal" class="modal-overlay" hidden>
     <div class="modal-card">
       <button class="modal-close" id="btn-close-key-modal" type="button" aria-label="Close" hidden>&times;</button>
+      <div class="modal-icon">
+        <svg viewBox="0 0 24 24" width="21" height="21"><path fill="currentColor" d="M12.65 10C11.83 7.67 9.61 6 7 6c-3.31 0-6 2.69-6 6s2.69 6 6 6c2.61 0 4.83-1.67 5.65-4H17v4h4v-4h2v-4H12.65ZM7 14c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2Z"/></svg>
+      </div>
       <h2>Connect your Claude API key</h2>
       <p class="muted">This app uses Claude to play the hotel manager. Your key is saved only in a local <code>.env</code> file on this machine — it's never sent anywhere except Anthropic's API.</p>
       <div class="field">
