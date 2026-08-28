@@ -18,6 +18,13 @@
 
   const recordState = { active: false, recorder: null, chunks: [], stream: null };
 
+  const BRAND = Object.assign({
+    counterpart_label: "manager",
+    counterpart_title: "Manager:",
+    mic_wait_tooltip: "Wait for the manager to finish talking",
+    mic_wait_toast: "Wait for the manager to finish talking before you respond.",
+  }, window.BRAND_COPY || {});
+
   // ---------- helpers ----------
   const $ = (sel) => document.querySelector(sel);
   const $$ = (sel) => Array.from(document.querySelectorAll(sel));
@@ -171,13 +178,19 @@
     const micBtn = $("#btn-mic");
     if (!micBtn) return;
     micBtn.disabled = state.speaking;
-    micBtn.title = state.speaking ? "Wait for the manager to finish talking" : "Speak your line";
+    micBtn.title = state.speaking ? BRAND.mic_wait_tooltip : "Speak your line";
   }
 
   function currentSpeechLang() {
     const localeId = state.session ? state.session.locale : (state.playbackSession && state.playbackSession.locale);
     const locale = localeId && state.localeById[localeId];
     return (locale && locale.speech_lang) || "en-US";
+  }
+
+  function currentLanguage() {
+    const localeId = state.session ? state.session.locale : (state.playbackSession && state.playbackSession.locale);
+    const locale = localeId && state.localeById[localeId];
+    return (locale && locale.language) || "en";
   }
 
   // ---------- speech: speech to text ----------
@@ -200,7 +213,7 @@
       return;
     }
     if (state.speaking) {
-      showToast("Wait for the manager to finish talking before you respond.");
+      showToast(BRAND.mic_wait_toast);
       return;
     }
     if (state.recognizing) {
@@ -439,7 +452,7 @@
     $(titleSel).textContent = `${session.hotel_name} · ${session.persona_label}`;
     $(bodySel).innerHTML = `
       <p><strong>${escapeHtml(session.hotel_name)}</strong> — ${escapeHtml(session.hotel_type_label)}</p>
-      <p><strong>Manager:</strong> ${escapeHtml(session.manager_name)} (${escapeHtml(session.persona_label)})</p>
+      <p><strong>${escapeHtml(BRAND.counterpart_title)}</strong> ${escapeHtml(session.manager_name)} (${escapeHtml(session.persona_label)})</p>
       <p><strong>Locale:</strong> ${escapeHtml(session.locale_label)} &nbsp; <strong>Difficulty:</strong> ${escapeHtml(session.difficulty_id)}</p>
       <p>${escapeHtml(session.scenario_brief)}</p>
     `;
@@ -451,17 +464,20 @@
 
   // ---------- chat (live call) ----------
   function bubbleHtml(msg, { readonly = false } = {}) {
-    const roleLabel = msg.role === "user" ? "You (rep)" : state.session ? state.session.manager_name : (state.playbackSession && state.playbackSession.manager_name) || "Manager";
+    const roleLabel = msg.role === "user" ? "You (rep)" : state.session ? state.session.manager_name : (state.playbackSession && state.playbackSession.manager_name) || BRAND.counterpart_title.replace(/:$/, "");
     const translationHtml = msg.translation
       ? `<div class="translation" data-mid="${msg.id}">${escapeHtml(msg.translation)}</div>`
       : "";
+    const translateBtnHtml = currentLanguage() === "en"
+      ? ""
+      : `<button class="mini-btn act-translate" data-id="${msg.id}">🌐 Translate</button>`;
     return `
       <div class="bubble-row ${msg.role}" data-id="${msg.id}">
         <div class="bubble-label">${escapeHtml(roleLabel)}</div>
         <div class="bubble">${escapeHtml(msg.text)}</div>
         <div class="bubble-actions">
           <button class="mini-btn act-speak" data-id="${msg.id}">🔊 Play</button>
-          <button class="mini-btn act-translate" data-id="${msg.id}">🌐 Translate</button>
+          ${translateBtnHtml}
         </div>
         ${translationHtml}
       </div>

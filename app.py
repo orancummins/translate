@@ -7,18 +7,15 @@ from flask import Flask, jsonify, render_template, request
 
 load_dotenv()
 
+import brands
 import claude_client
 import db
-from personas import (
-    DIFFICULTY_BY_ID,
-    HOTEL_TYPE_BY_ID,
-    LOCALE_BY_ID,
-    MANAGER_PERSONA_BY_ID,
-    options_payload,
-)
+from personas import DIFFICULTY_BY_ID
 
 app = Flask(__name__)
 db.init_db()
+
+BRAND = brands.get_brand()
 
 
 def error(message, status=400):
@@ -27,12 +24,12 @@ def error(message, status=400):
 
 @app.get("/")
 def index():
-    return render_template("index.html")
+    return render_template("index.html", brand=BRAND)
 
 
 @app.get("/api/options")
 def api_options():
-    return jsonify(options_payload())
+    return jsonify(brands.options_payload(BRAND))
 
 
 @app.get("/api/config")
@@ -70,16 +67,16 @@ def api_create_session():
     difficulty_id = payload.get("difficulty_id")
     locale_id = payload.get("locale_id")
 
-    if hotel_type_id not in HOTEL_TYPE_BY_ID:
+    if hotel_type_id not in BRAND["company_type_by_id"]:
         return error("Unknown hotel_type_id")
-    if persona_id not in MANAGER_PERSONA_BY_ID:
+    if persona_id not in BRAND["persona_by_id"]:
         return error("Unknown persona_id")
     if difficulty_id not in DIFFICULTY_BY_ID:
         return error("Unknown difficulty_id")
-    if locale_id not in LOCALE_BY_ID:
+    if locale_id not in BRAND["locale_by_id"]:
         return error("Unknown locale_id")
 
-    locale = LOCALE_BY_ID[locale_id]
+    locale = BRAND["locale_by_id"][locale_id]
 
     try:
         scenario = claude_client.generate_scenario(
@@ -96,9 +93,9 @@ def api_create_session():
         locale=locale_id,
         locale_label=locale["label"],
         hotel_type_id=hotel_type_id,
-        hotel_type_label=HOTEL_TYPE_BY_ID[hotel_type_id]["label"],
+        hotel_type_label=BRAND["company_type_by_id"][hotel_type_id]["label"],
         persona_id=persona_id,
-        persona_label=MANAGER_PERSONA_BY_ID[persona_id]["label"],
+        persona_label=BRAND["persona_by_id"][persona_id]["label"],
         difficulty_id=difficulty_id,
         hotel_name=scenario["hotel_name"],
         manager_name=scenario["manager_name"],

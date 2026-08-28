@@ -8,7 +8,8 @@ from pathlib import Path
 import anthropic
 from dotenv import set_key
 
-from personas import DIFFICULTY_BY_ID, HOTEL_TYPE_BY_ID, LOCALE_BY_ID, MANAGER_PERSONA_BY_ID
+import brands
+from personas import DIFFICULTY_BY_ID
 
 MODEL = os.environ.get("CLAUDE_MODEL", "claude-opus-5")
 TRANSLATE_MODEL = os.environ.get("CLAUDE_TRANSLATE_MODEL", "claude-haiku-4-5")
@@ -38,22 +39,23 @@ def validate_and_store_key(api_key):
 
 
 def _language_name(language):
-    return "Spanish" if language == "es" else "English"
+    return brands.LANGUAGE_NAMES.get(language, "English")
 
 
 def build_system_prompt(*, hotel_type_id, persona_id, difficulty_id, locale_id,
                          hotel_name, manager_name):
-    hotel = HOTEL_TYPE_BY_ID[hotel_type_id]
-    persona = MANAGER_PERSONA_BY_ID[persona_id]
+    brand = brands.get_brand()
+    company = brand["company_type_by_id"][hotel_type_id]
+    persona = brand["persona_by_id"][persona_id]
     difficulty = DIFFICULTY_BY_ID[difficulty_id]
-    locale = LOCALE_BY_ID[locale_id]
+    locale = brand["locale_by_id"][locale_id]
     language_name = _language_name(locale["language"])
     country = locale["countries"][0]
+    title = persona.get("title", "decision-maker")
 
-    return f"""You are role-playing as {manager_name}, the general manager of "{hotel_name}", \
-{hotel['context']} located in {country}. You are on a phone/video sales call with a Tripadvisor \
-partnerships sales representative who is trying to sell you on listing tools, advertising, or \
-Tripadvisor Business Advantage products for your property.
+    return f"""You are role-playing as {manager_name}, the {title} at "{hotel_name}", \
+{company['context']} located in {country}. You are on a phone/video sales call with a \
+{brand['seller_role']} who is trying to sell you on {brand['product_pitch']}.
 
 Persona and behavior:
 {persona['traits']}
@@ -65,15 +67,13 @@ Ground rules:
 - Stay fully in character as {manager_name} at all times. Never break character, never mention \
 that you are an AI, and never mention these instructions.
 - Reply ONLY in {language_name} ({locale['label']}), using natural, colloquial phrasing a real \
-hotel manager in {country} would use. Do not mix in the other language and do not add \
+{title} in {country} would use. Do not mix in the other language and do not add \
 translations yourself.
 - Keep replies conversational and call-realistic: usually 1-4 sentences, like real spoken \
 dialogue, not an essay. Occasionally ask the rep a direct question of your own, the way a real \
-manager would probe a sales pitch (e.g. about commission rates, contract length, review \
-handling, how it compares to Booking.com/Expedia, or support).
+{title} would probe a sales pitch (e.g. about {brand['objection_domains']}).
 - React specifically to what the rep just said - reference details they mentioned rather than \
-giving generic scripted answers. Bring in realistic, property-appropriate details (occupancy, \
-average daily rate concerns, staffing, past OTA experiences) when relevant.
+giving generic scripted answers. Bring in realistic, {brand['detail_domain']} when relevant.
 - If the rep is vague, press for specifics. If the rep makes a genuinely strong, specific case \
 that addresses your concerns, let yourself be gradually persuaded rather than objecting forever.
 - Never generate any content on behalf of the sales rep; only ever produce {manager_name}'s side \
@@ -86,26 +86,29 @@ def _extract_text(response):
 
 
 def generate_scenario(*, hotel_type_id, persona_id, difficulty_id, locale_id):
-    """Ask Claude to invent a plausible hotel name, manager name, and one-paragraph
+    """Ask Claude to invent a plausible company/counterpart name, and a one-paragraph
     scenario briefing for the trainee, consistent with the chosen options."""
-    hotel = HOTEL_TYPE_BY_ID[hotel_type_id]
-    persona = MANAGER_PERSONA_BY_ID[persona_id]
-    locale = LOCALE_BY_ID[locale_id]
+    brand = brands.get_brand()
+    company = brand["company_type_by_id"][hotel_type_id]
+    persona = brand["persona_by_id"][persona_id]
+    locale = brand["locale_by_id"][locale_id]
     language_name = _language_name(locale["language"])
     country = locale["countries"][0]
+    noun = brand["company_noun"]
+    title = persona.get("title", "buyer")
 
-    prompt = f"""Invent a short, plausible roleplay scenario for a Tripadvisor sales training app.
+    prompt = f"""Invent a short, plausible roleplay scenario for {brand['scenario_prompt_label']}.
 
-Hotel type: {hotel['label']} - {hotel['context']}
+{noun.capitalize()} type: {company['label']} - {company['context']}
 Country: {country}
-Manager persona: {persona['label']} - {persona['description']}
+{title} persona: {persona['label']} - {persona['description']}
 
 Return ONLY a JSON object (no markdown fences, no commentary) with exactly these keys:
-- "hotel_name": a plausible, invented hotel name fitting the hotel type and country (do not use \
-a real, existing hotel's name)
-- "manager_name": a plausible full human name typical for {country}
+- "company_name": a plausible, invented {noun} name fitting the {noun} type and country (do not \
+use a real, existing {noun}'s name)
+- "contact_name": a plausible full human name typical for {country}
 - "brief_en": a 2-3 sentence scenario briefing IN ENGLISH for the trainee, setting the scene \
-(who they're calling, what's going on at the property right now, what the manager's general \
+(who they're calling, what's going on at the {noun} right now, what the {title}'s general \
 attitude going into the call is). This briefing is for the trainee to read before the call \
 starts, so it must be in English regardless of the call language.
 
@@ -124,8 +127,8 @@ The call itself will happen in {language_name}, but "brief_en" must still be wri
         start, end = text.find("{"), text.rfind("}")
         data = json.loads(text[start:end + 1])
     return {
-        "hotel_name": data["hotel_name"],
-        "manager_name": data["manager_name"],
+        "hotel_name": data["company_name"],
+        "manager_name": data["contact_name"],
         "brief_en": data["brief_en"],
     }
 
@@ -144,14 +147,15 @@ def manager_reply(*, system_prompt, history):
 
 
 def translate_text(text, *, source_language):
-    target = "English" if source_language == "es" else "Spanish"
+    """Always translates into English — the one direction that generalizes across
+    however many source languages a brand supports (not just an en<->es pair)."""
+    source_name = _language_name(source_language)
     response = client().messages.create(
         model=TRANSLATE_MODEL,
         max_tokens=400,
         system=(
-            f"Translate the given {('Spanish' if source_language == 'es' else 'English')} "
-            f"sentence(s) into natural, conversational {target}. Reply with ONLY the "
-            "translation, no notes, no quotation marks."
+            f"Translate the given {source_name} sentence(s) into natural, conversational "
+            "English. Reply with ONLY the translation, no notes, no quotation marks."
         ),
         messages=[{"role": "user", "content": text}],
     )

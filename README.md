@@ -175,6 +175,28 @@ starting the app.
 | `CLAUDE_MODEL` | `claude-opus-5` | Model used for the manager roleplay & scenario generation |
 | `CLAUDE_TRANSLATE_MODEL` | `claude-haiku-4-5` | Cheaper/faster model used only for the optional line translations |
 | `PORT` | `5050` | Port Flask listens on |
+| `BRAND` | `tripadvisor` | Which demo to run: `tripadvisor` (hotel sales) or `oyster` (global employment/EOR sales) |
+
+## Running a different company demo
+
+The same app can run as two different pitches, switched with the `BRAND`
+env var — everything downstream (company/persona lists, the scenario and
+roleplay prompts, colors, and copy) follows from it:
+
+```bash
+BRAND=oyster ./run.sh
+```
+
+or for manual setup:
+
+```bash
+BRAND=oyster python app.py
+```
+
+Leave `BRAND` unset (or `BRAND=tripadvisor`) for the original hotel-sales
+demo. Brand packs live in [brands.py](brands.py) — add a new one there
+(company types, buyer personas, locales, colors, prompt phrasing) to
+support a third demo without touching the rest of the app.
 
 ## Recording a call
 
@@ -201,8 +223,9 @@ context in most browsers. Text mode works anywhere.
 
 ```
 app.py            Flask routes
+brands.py         Per-company demo packs (Tripadvisor / Oyster) + active-brand selection
 claude_client.py  Anthropic API calls (scenario generation, manager replies, translation)
-personas.py       Hotel types, manager personas, locales, difficulty levels
+personas.py       Tripadvisor hotel types, manager personas, locales, difficulty levels
 db.py             SQLite persistence for sessions/messages
 templates/         index.html — single-page app shell
 static/css/        styling

@@ -85,6 +85,13 @@ html, body {
   transition: transform 0.2s ease;
 }
 .brand:hover .brand-mark { transform: rotate(-6deg) scale(1.05); }
+.brand-mark--text {
+  border-radius: 10px;
+  background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+  color: var(--accent-ink);
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 800; font-size: 13px; letter-spacing: 0.5px;
+}
 .brand-text { display: flex; flex-direction: column; line-height: 1.2; min-width: 0; }
 .brand-text strong {
   font-size: 15px;

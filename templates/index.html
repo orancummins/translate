@@ -3,20 +3,37 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#0e2a24">
+<meta name="theme-color" content="{{ brand.theme_color }}">
 <title>Sales Call Trainer</title>
-<link rel="icon" href="{{ url_for('static', filename='tripadvisor-icon.png') }}">
+{% if brand.logo_icon %}
+<link rel="icon" href="{{ url_for('static', filename=brand.logo_icon) }}">
+{% else %}
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><circle cx=%2250%22 cy=%2250%22 r=%2248%22 fill=%22{{ brand.colors.accent | urlencode }}%22/><text x=%2250%22 y=%2266%22 font-size=%2255%22 font-family=%22Arial%22 font-weight=%22bold%22 text-anchor=%22middle%22 fill=%22{{ brand.colors.accent_ink | urlencode }}%22>O</text></svg>">
+{% endif %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+<style>
+  :root{
+    --accent: {{ brand.colors.accent }};
+    --accent-2: {{ brand.colors.accent_2 }};
+    --accent-dark: {{ brand.colors.accent_dark }};
+    --accent-ink: {{ brand.colors.accent_ink }};
+  }
+</style>
 </head>
-<body>
+<body class="brand-{{ brand.id }}">
+<script>window.BRAND_COPY = {{ brand.js_copy | tojson }};</script>
 <div id="app">
 
   <header class="topbar">
     <div class="brand">
-      <img class="brand-mark" src="{{ url_for('static', filename='tripadvisor-icon.png') }}" alt="" width="36" height="36">
+      {% if brand.logo_icon %}
+      <img class="brand-mark" src="{{ url_for('static', filename=brand.logo_icon) }}" alt="" width="36" height="36">
+      {% else %}
+      <span class="brand-mark brand-mark--text">{{ brand.monogram }}</span>
+      {% endif %}
       <div class="brand-text">
         <strong>Sales Call Trainer</strong>
-        <span>Hotel manager roleplay practice</span>
+        <span>{{ brand.app_subtitle }}</span>
       </div>
     </div>
     <nav class="topnav">
@@ -33,9 +50,11 @@
     <!-- SETUP VIEW -->
     <section class="view" id="view-setup">
       <div class="card setup-card">
-        <img class="brand-kicker" src="{{ url_for('static', filename='tripadvisor-wordmark-white.png') }}" alt="Tripadvisor" height="14">
+        {% if brand.logo_wordmark %}
+        <img class="brand-kicker" src="{{ url_for('static', filename=brand.logo_wordmark) }}" alt="" height="14">
+        {% endif %}
         <h1>Start a practice call</h1>
-        <p class="muted">Pick a scenario. Claude will play the hotel manager and stay in character for the whole call.</p>
+        <p class="muted">{{ brand.setup_lede }}</p>
 
         <div class="field">
           <label for="opt-locale">Language &amp; locale</label>
@@ -43,13 +62,13 @@
         </div>
 
         <div class="field">
-          <label for="opt-hotel">Type of hotel</label>
+          <label for="opt-hotel">{{ brand.company_type_field_label }}</label>
           <select id="opt-hotel"></select>
           <p class="hint" id="hint-hotel"></p>
         </div>
 
         <div class="field">
-          <label for="opt-persona">Manager persona</label>
+          <label for="opt-persona">{{ brand.persona_field_label }}</label>
           <select id="opt-persona"></select>
           <p class="hint" id="hint-persona"></p>
         </div>
@@ -91,7 +110,7 @@
         <div class="composer-controls">
           <label class="switch">
             <input type="checkbox" id="opt-autoplay" checked>
-            <span>Auto-speak manager replies</span>
+            <span>Auto-speak {{ brand.js_copy.counterpart_label }} replies</span>
           </label>
           <button class="record-toggle" id="btn-record" title="Record this call as a video" type="button">
             <span class="record-dot" aria-hidden="true"></span><span class="record-label">Record</span>
@@ -139,7 +158,7 @@
         <svg viewBox="0 0 24 24" width="21" height="21"><path fill="currentColor" d="M12.65 10C11.83 7.67 9.61 6 7 6c-3.31 0-6 2.69-6 6s2.69 6 6 6c2.61 0 4.83-1.67 5.65-4H17v4h4v-4h2v-4H12.65ZM7 14c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2Z"/></svg>
       </div>
       <h2>Connect your Claude API key</h2>
-      <p class="muted">This app uses Claude to play the hotel manager. Your key is saved only in a local <code>.env</code> file on this machine — it's never sent anywhere except Anthropic's API.</p>
+      <p class="muted">This app uses Claude to play the {{ brand.key_modal_role }}. Your key is saved only in a local <code>.env</code> file on this machine — it's never sent anywhere except Anthropic's API.</p>
       <div class="field">
         <label for="key-input">Anthropic API key</label>
         <input type="password" id="key-input" placeholder="sk-ant-..." autocomplete="off" spellcheck="false">
