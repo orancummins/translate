@@ -8,6 +8,7 @@
     session: null,
     messages: [],
     recognizing: false,
+    speaking: false,
     autoplayEnabled: true,
     playbackSession: null,
     playbackMessages: [],
@@ -128,6 +129,7 @@
   function speak(text, langCode, { pitch = 1 } = {}) {
     return new Promise((resolve) => {
       if (!("speechSynthesis" in window)) { resolve(); return; }
+      if (state.recognizing) recognizer && recognizer.stop();
       window.speechSynthesis.cancel();
       const utter = new SpeechSynthesisUtterance(text);
       utter.lang = langCode;
@@ -135,8 +137,15 @@
       utter.rate = 1;
       const voice = pickVoice(langCode);
       if (voice) utter.voice = voice;
-      utter.onend = resolve;
-      utter.onerror = resolve;
+      const finish = () => {
+        state.speaking = false;
+        updateMicAvailability();
+        resolve();
+      };
+      utter.onend = finish;
+      utter.onerror = finish;
+      state.speaking = true;
+      updateMicAvailability();
       window.speechSynthesis.speak(utter);
     });
   }
@@ -145,6 +154,15 @@
     if ("speechSynthesis" in window) window.speechSynthesis.cancel();
     state.playbackStopRequested = true;
     state.playbackPlaying = false;
+    state.speaking = false;
+    updateMicAvailability();
+  }
+
+  function updateMicAvailability() {
+    const micBtn = $("#btn-mic");
+    if (!micBtn) return;
+    micBtn.disabled = state.speaking;
+    micBtn.title = state.speaking ? "Wait for the manager to finish talking" : "Speak your line";
   }
 
   function currentSpeechLang() {
@@ -170,6 +188,10 @@
   function toggleMic() {
     if (!SpeechRecognitionImpl) {
       showToast("Voice input isn't supported in this browser — try Chrome, or just type.");
+      return;
+    }
+    if (state.speaking) {
+      showToast("Wait for the manager to finish talking before you respond.");
       return;
     }
     if (state.recognizing) {

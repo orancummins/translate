@@ -344,6 +344,8 @@ select:focus, textarea:focus, input:focus {
 }
 .icon-btn:hover { border-color: var(--accent); }
 .icon-btn:active { transform: scale(0.94); }
+.icon-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.icon-btn:disabled:hover { border-color: var(--border); }
 .icon-btn.recording { background: var(--danger); border-color: var(--danger); color: #fff; animation: pulse 1.2s infinite; }
 .icon-btn.send { background: linear-gradient(135deg, var(--accent-2), var(--accent-dark)); color: var(--accent-ink); border: none; box-shadow: 0 6px 16px rgba(52, 224, 161, 0.3); }
 @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(239, 100, 97, 0.5); } 70% { box-shadow: 0 0 0 10px rgba(239, 100, 97, 0); } 100% { box-shadow: 0 0 0 0 rgba(239, 100, 97, 0); } }
