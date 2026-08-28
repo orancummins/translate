@@ -137,7 +137,16 @@
       utter.rate = 1;
       const voice = pickVoice(langCode);
       if (voice) utter.voice = voice;
+      // Chrome silently cuts off any utterance longer than ~15s unless the
+      // page keeps nudging it — pause/resume is a no-op while genuinely
+      // speaking, but resets Chrome's internal timeout.
+      const keepAlive = setInterval(() => {
+        if (!window.speechSynthesis.speaking) return;
+        window.speechSynthesis.pause();
+        window.speechSynthesis.resume();
+      }, 10000);
       const finish = () => {
+        clearInterval(keepAlive);
         state.speaking = false;
         updateMicAvailability();
         resolve();

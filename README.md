@@ -117,9 +117,26 @@ know how to code, just copy/paste each command into Terminal.
 
 Whenever you want to use the app again later, open Terminal, run
 `cd ~/sales-call-trainer && ./run.sh`, and open
-`http://localhost:5050` again. Running `./run.sh` also installs any updates
-to the app's dependencies and restarts it if it's already running, so it's
-safe to run any time.
+`http://localhost:5050` again. `./run.sh` restarts the app if it's already
+running, so it's safe to run any time — but it only reinstalls Python
+dependencies, it does **not** fetch new code changes on its own (see
+below).
+
+### Updating the app
+
+This app is under active development, so new fixes and features land in
+GitHub after you've first installed it. `./run.sh` does *not* pull those in
+by itself — you need one extra command first:
+
+```bash
+cd ~/sales-call-trainer
+git pull
+./run.sh
+```
+
+`git pull` downloads the latest code; `./run.sh` then reinstalls anything
+new the code depends on and restarts the app with it. Do this any time
+something's been fixed and you want the update.
 
 ### Getting an API key
 
