@@ -96,7 +96,7 @@
     "en-AU": ["Karen", "Lee"],
     "en-IE": ["Moira"],
     "en-ZA": ["Tessa"],
-    "es-ES": ["Mónica", "Paulina", "Isabela"],
+    "es-ES": ["Paulina", "Isabela"],
     "es-MX": ["Paulina", "Juan", "Angelica"],
     "es-AR": ["Diego"],
     "es-CO": ["Soledad"],
@@ -114,6 +114,13 @@
     if (/enhanced|premium/i.test(v.name)) score += 40;
 
     const baseName = v.name.split(" (")[0];
+
+    // Monica reads more naturally than any other Spanish voice we've tried,
+    // so she's the preferred voice across every Spanish locale (Spain,
+    // Mexico, Argentina, Colombia) — not just her native es-ES — even
+    // though a device may also offer a locale-matched voice.
+    if (target.startsWith("es") && /^m[oó]nica$/i.test(baseName)) score += 200;
+
     const preferred = PREFERRED_VOICE_NAMES[langCode] || [];
     const rank = preferred.indexOf(baseName);
     if (rank !== -1) score += (preferred.length - rank) * 10;
