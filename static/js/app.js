@@ -43,11 +43,26 @@
     }[c]));
   }
 
+  // ---------- keys: on a shared server (visitor mode) they stay in this browser and go with each request ----------
+  const store = {
+    get: (k) => { try { return localStorage.getItem(k) || ""; } catch (e) { return ""; } },
+    set: (k, v) => { try { v ? localStorage.setItem(k, v) : localStorage.removeItem(k); } catch (e) {} },
+  };
+  const visitorId = (() => {
+    let id = store.get("tr_visitor");
+    if (!id) { id = (crypto.randomUUID ? crypto.randomUUID() : String(Math.random()).slice(2)) .replace(/-/g, ""); store.set("tr_visitor", id); }
+    return id;
+  })();
+  const keyState = { mode: "server", claude: false, voice: false };
+
   async function api(path, opts = {}) {
-    const res = await fetch(path, {
-      headers: { "Content-Type": "application/json" },
-      ...opts,
-    });
+    const headers = { "Content-Type": "application/json", ...(opts.headers || {}) };
+    if (keyState.mode === "visitor") {
+      headers["X-Visitor"] = visitorId;
+      if (store.get("tr_claude_key")) headers["X-Claude-Key"] = store.get("tr_claude_key");
+      if (store.get("tr_eleven_key")) headers["X-ElevenLabs-Key"] = store.get("tr_eleven_key");
+    }
+    const res = await fetch(path.replace(/^\//, ""), { ...opts, headers });   // relative: works at / and at /translate/
     let data = null;
     try { data = await res.json(); } catch (e) { /* no body */ }
     if (!res.ok) {
@@ -133,7 +148,35 @@
     return bestScore > -Infinity ? best : null;
   }
 
-  function speak(text, langCode, { pitch = 1 } = {}) {
+  let currentAudio = null;
+  async function speak(text, langCode, { pitch = 1, role = "assistant" } = {}) {
+    if (keyState.voice) {
+      try { await speakEleven(text, role); return; }
+      catch (e) { console.warn("ElevenLabs voice failed; using the browser voice.", e); }
+    }
+    return speakBrowser(text, langCode, { pitch });
+  }
+
+  async function speakEleven(text, role) {
+    if (state.recognizing) recognizer && recognizer.stop();
+    if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+    if (currentAudio) { currentAudio.pause(); currentAudio = null; }
+    const headers = { "Content-Type": "application/json" };
+    if (keyState.mode === "visitor") { headers["X-Visitor"] = visitorId; headers["X-ElevenLabs-Key"] = store.get("tr_eleven_key"); }
+    const res = await fetch("api/tts", { method: "POST", headers, body: JSON.stringify({ text, role }) });
+    if (!res.ok) throw new Error(`voice HTTP ${res.status}`);
+    const url = URL.createObjectURL(await res.blob());
+    const audio = new Audio(url); currentAudio = audio;
+    state.speaking = true; updateMicAvailability();
+    try {
+      await new Promise((resolve, reject) => { audio.onended = resolve; audio.onerror = () => reject(new Error("could not play")); audio.onpause = () => { if (audio.currentTime < audio.duration) resolve(); }; audio.play().catch(reject); });
+    } finally {
+      URL.revokeObjectURL(url); if (currentAudio === audio) currentAudio = null;
+      state.speaking = false; updateMicAvailability();
+    }
+  }
+
+  function speakBrowser(text, langCode, { pitch = 1 } = {}) {
     return new Promise((resolve) => {
       if (!("speechSynthesis" in window)) { resolve(); return; }
       if (state.recognizing) recognizer && recognizer.stop();
@@ -168,6 +211,7 @@
 
   function stopAllSpeech() {
     if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+    if (currentAudio) { currentAudio.pause(); currentAudio = null; }
     state.playbackStopRequested = true;
     state.playbackPlaying = false;
     state.speaking = false;
@@ -333,13 +377,20 @@
   async function checkConfig() {
     try {
       const status = await api("/api/config");
-      if (!status.configured) openKeyModal(false);
+      keyState.mode = status.mode || "server";
+      if (keyState.mode === "visitor") { keyState.claude = !!store.get("tr_claude_key"); keyState.voice = !!store.get("tr_eleven_key"); }
+      else { keyState.claude = !!status.configured; keyState.voice = !!status.voice; }
+      document.body.dataset.keyMode = keyState.mode;
+      if (!keyState.claude) openKeyModal(false);
     } catch (e) { /* ignore — user can still open settings manually */ }
   }
 
   function openKeyModal(dismissible) {
     $("#key-modal").hidden = false;
     $("#key-input").value = "";
+    $("#voice-key-input").value = "";
+    $("#key-input").placeholder = keyState.claude ? "Saved. Paste a new one to replace it" : "sk-ant-...";
+    $("#voice-key-input").placeholder = keyState.voice ? "Saved. Paste a new one to replace it" : "Optional: your ElevenLabs API key";
     $("#key-error").hidden = true;
     $("#btn-close-key-modal").hidden = !dismissible;
     $("#key-input").focus();
@@ -354,19 +405,27 @@
     const btn = $("#btn-save-key");
     const spinner = btn.querySelector(".spinner");
     const errEl = $("#key-error");
-    const key = input.value.trim();
+    const key = input.value.trim(), voiceKey = $("#voice-key-input").value.trim();
     errEl.hidden = true;
-    if (!key) {
-      errEl.textContent = "Paste your API key first.";
+    if (!key && !voiceKey) {
+      if (keyState.claude) { closeKeyModal(); return; }
+      errEl.textContent = "Paste your Claude API key first.";
       errEl.hidden = false;
       return;
     }
+    if (!key && !keyState.claude) { errEl.textContent = "A Claude API key is needed as well."; errEl.hidden = false; return; }
     btn.disabled = true;
     spinner.hidden = false;
     try {
-      await api("/api/config", { method: "POST", body: JSON.stringify({ api_key: key }) });
+      await api("/api/config", { method: "POST", body: JSON.stringify({ api_key: key, elevenlabs_key: voiceKey }) });
+      if (keyState.mode === "visitor") {                      // a shared server keeps nothing: this browser holds the keys
+        if (key) store.set("tr_claude_key", key);
+        if (voiceKey) store.set("tr_eleven_key", voiceKey);
+      }
+      if (key) keyState.claude = true;
+      if (voiceKey) keyState.voice = true;
       closeKeyModal();
-      showToast("API key saved.");
+      showToast(voiceKey ? "Saved. Replies now use your ElevenLabs voice." : "API key saved.");
     } catch (e) {
       errEl.textContent = e.message;
       errEl.hidden = false;
@@ -540,7 +599,7 @@
       const msg = messages.find((m) => String(m.id) === speakBtn.dataset.id);
       if (msg) {
         speakBtn.classList.add("speaking");
-        await speak(msg.text, currentSpeechLang(), { pitch: msg.role === "user" ? 1.08 : 0.95 });
+        await speak(msg.text, currentSpeechLang(), { pitch: msg.role === "user" ? 1.08 : 0.95, role: msg.role });
         speakBtn.classList.remove("speaking");
       }
       return;
@@ -616,7 +675,7 @@
       if (state.playbackStopRequested) break;
       const row = $(`#playback-log .bubble-row[data-id="${msg.id}"]`);
       if (row) row.querySelector(".bubble").style.outline = "2px solid var(--accent)";
-      await speak(msg.text, currentSpeechLang(), { pitch: msg.role === "user" ? 1.08 : 0.95 });
+      await speak(msg.text, currentSpeechLang(), { pitch: msg.role === "user" ? 1.08 : 0.95, role: msg.role });
       if (row) row.querySelector(".bubble").style.outline = "none";
     }
 

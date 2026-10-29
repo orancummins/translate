@@ -43,6 +43,12 @@ def init_db():
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     with get_conn() as conn:
         conn.executescript(SCHEMA)
+        cols = {r["name"] for r in conn.execute("PRAGMA table_info(sessions)")}
+        if "owner" not in cols:      # visitor mode: each browser sees only its own calls
+            try:
+                conn.execute("ALTER TABLE sessions ADD COLUMN owner TEXT NOT NULL DEFAULT ''")
+            except sqlite3.OperationalError:
+                pass                 # another process added it a moment ago
 
 
 @contextmanager
@@ -63,7 +69,7 @@ def now_iso():
 
 def create_session(*, language, locale, locale_label, hotel_type_id, hotel_type_label,
                     persona_id, persona_label, difficulty_id, hotel_name, manager_name,
-                    scenario_brief):
+                    scenario_brief, owner=""):
     session_id = uuid.uuid4().hex[:12]
     title = f"{hotel_name} — {persona_label}"
     with get_conn() as conn:
@@ -71,22 +77,24 @@ def create_session(*, language, locale, locale_label, hotel_type_id, hotel_type_
             """INSERT INTO sessions
                (id, created_at, title, language, locale, locale_label, hotel_type_id,
                 hotel_type_label, persona_id, persona_label, difficulty_id, hotel_name,
-                manager_name, scenario_brief)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                manager_name, scenario_brief, owner)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (session_id, now_iso(), title, language, locale, locale_label, hotel_type_id,
              hotel_type_label, persona_id, persona_label, difficulty_id, hotel_name,
-             manager_name, scenario_brief),
+             manager_name, scenario_brief, owner or ""),
         )
     return session_id
 
 
-def list_sessions():
+def list_sessions(owner=None):
+    """All calls, or only those of one visitor when owner is given (visitor mode)."""
     with get_conn() as conn:
         rows = conn.execute(
             """SELECT s.*,
                       (SELECT COUNT(*) FROM messages m WHERE m.session_id = s.id) AS message_count
                FROM sessions s
-               ORDER BY s.created_at DESC"""
+               WHERE ? IS NULL OR s.owner = ?
+               ORDER BY s.created_at DESC""", (owner, owner)
         ).fetchall()
         return [dict(r) for r in rows]
 

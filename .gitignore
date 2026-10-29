@@ -7,3 +7,6 @@ data/*.log
 data/*.pid
 .env
 .DS_Store
+data/tts_cache/
+.env.*
+!.env.example

@@ -232,3 +232,33 @@ static/css/        styling
 static/js/         app logic, Web Speech API integration
 data/               SQLite database file (gitignored)
 ```
+
+## Voice: ElevenLabs, with the browser as the fallback
+
+With an ElevenLabs key, the manager's replies (and your own lines when you replay a call) are spoken by ElevenLabs'
+`eleven_multilingual_v2` model, which handles English and Spanish in the same voice. The audio is cached in
+`data/tts_cache/`, so a line that has been spoken once costs nothing again. Without a key, or if a request fails, the
+browser's own voices are used exactly as before.
+
+- Voices: `ELEVENLABS_VOICE_MANAGER` (default Rachel, `21m00Tcm4TlvDq8ikWAM`) and `ELEVENLABS_VOICE_USER` (default Adam,
+  `pNInz6obpgDQGcFmaJgB`); any voice id from your ElevenLabs library works.
+- Keys: open the key icon in the top bar and paste a Claude key and, optionally, an ElevenLabs key.
+
+## Two ways to run it
+
+| | your own machine (`./run.sh`) | a shared server (`./serve.sh`) |
+|---|---|---|
+| `KEY_MODE` | `server` (default) | `visitor` |
+| where keys live | `.env` here (see `.env.example`) | only in each visitor's browser, sent with each request |
+| conversations | all on this machine | each browser sees only its own |
+| web server | Flask's, with the debugger | waitress, no debugger, `127.0.0.1:$PORT` |
+
+In visitor mode the server never stores a key and never reads one from `.env`, so nobody spends your credit: each person
+pastes their own. It runs fine under a path prefix (`https://oran-dev.com/translate/`): nginx sends
+`X-Forwarded-Prefix` and every link in the app is relative.
+
+### Deploying to the dev server
+
+The app is registered in `dev-server-page/services.json` as `translate` (port 5056, `https://oran-dev.com/translate/`,
+`run: serve.sh`). From the dev Mac, in `~/dev/dev-server-page`: `make install` once (it asks for the server's password to
+install the LaunchDaemon and nginx route), then `make app ID=translate` to pull and restart it, and `make landing` for the card.

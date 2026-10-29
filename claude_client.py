@@ -19,14 +19,31 @@ _client = None
 
 
 def client():
+    """The Anthropic client for this request: the visitor's own key in visitor mode, else the one in .env."""
     global _client
+    key = _request_key()
+    if key:
+        return anthropic.Anthropic(api_key=key)
     if _client is None:
         _client = anthropic.Anthropic()
     return _client
 
 
+def _request_key():
+    try:
+        from flask import g, has_request_context
+        return g.get("claude_key") if has_request_context() else None
+    except ImportError:
+        return None
+
+
 def is_configured():
     return bool(os.environ.get("ANTHROPIC_API_KEY"))
+
+
+def validate_key(api_key):
+    """Raise if the key does not work (visitor mode: nothing is stored)."""
+    anthropic.Anthropic(api_key=api_key).models.list(limit=1)
 
 
 def validate_and_store_key(api_key):
