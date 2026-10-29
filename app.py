@@ -3,13 +3,14 @@
 import os
 
 from dotenv import load_dotenv
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, Response, jsonify, render_template, request
 
 load_dotenv()
 
 import brands
 import claude_client
 import db
+import elevenlabs_client
 from personas import DIFFICULTY_BY_ID
 
 app = Flask(__name__)
@@ -34,7 +35,10 @@ def api_options():
 
 @app.get("/api/config")
 def api_get_config():
-    return jsonify({"configured": claude_client.is_configured()})
+    return jsonify({
+        "configured": claude_client.is_configured(),
+        "elevenlabs_configured": elevenlabs_client.is_configured(),
+    })
 
 
 @app.post("/api/config")
@@ -153,6 +157,26 @@ def api_post_message(session_id):
 
     message_id = db.add_message(session_id, "assistant", reply_text)
     return jsonify(db.get_message(message_id)), 201
+
+
+@app.post("/api/tts")
+def api_tts():
+    payload = request.get_json(silent=True) or {}
+    text = (payload.get("text") or "").strip()
+    if not text:
+        return error("Text is required")
+
+    try:
+        audio = elevenlabs_client.synthesize(text)
+    except ValueError as exc:
+        return error(str(exc))
+    except Exception as exc:  # noqa: BLE001
+        return error(f"Could not synthesize speech: {exc}", 502)
+
+    if audio is None:
+        return error("ElevenLabs is not configured", 404)
+
+    return Response(audio, mimetype="audio/mpeg")
 
 
 @app.post("/api/messages/<int:message_id>/translate")

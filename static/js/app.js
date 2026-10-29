@@ -9,6 +9,7 @@
     messages: [],
     recognizing: false,
     speaking: false,
+    elevenlabsEnabled: false,
     autoplayEnabled: true,
     playbackSession: null,
     playbackMessages: [],
@@ -140,10 +141,9 @@
     return bestScore > -Infinity ? best : null;
   }
 
-  function speak(text, langCode, { pitch = 1 } = {}) {
+  function speakBrowser(text, langCode, { pitch = 1 } = {}) {
     return new Promise((resolve) => {
       if (!("speechSynthesis" in window)) { resolve(); return; }
-      if (state.recognizing) recognizer && recognizer.stop();
       window.speechSynthesis.cancel();
       const utter = new SpeechSynthesisUtterance(text);
       utter.lang = langCode;
@@ -159,22 +159,72 @@
         window.speechSynthesis.pause();
         window.speechSynthesis.resume();
       }, 10000);
-      const finish = () => {
-        clearInterval(keepAlive);
-        state.speaking = false;
-        updateMicAvailability();
-        resolve();
-      };
+      const finish = () => { clearInterval(keepAlive); resolve(); };
       utter.onend = finish;
       utter.onerror = finish;
-      state.speaking = true;
-      updateMicAvailability();
       window.speechSynthesis.speak(utter);
+    });
+  }
+
+  // ElevenLabs audio is fetched from our own backend (keeps the API key
+  // server-side) and cached per message id in memory, so replaying the same
+  // saved line — e.g. via "Play whole conversation" — doesn't re-bill it.
+  let currentAudio = null;
+  const ttsCache = new Map(); // messageId -> blob URL
+
+  function speakElevenLabs(text, { pitch = 1, cacheKey = null } = {}) {
+    const cached = cacheKey && ttsCache.get(cacheKey);
+    const fetchAudio = cached
+      ? Promise.resolve(cached)
+      : fetch("/api/tts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text }),
+        }).then((res) => {
+          if (!res.ok) throw new Error(`TTS request failed (${res.status})`);
+          return res.blob();
+        }).then((blob) => {
+          const url = URL.createObjectURL(blob);
+          if (cacheKey) ttsCache.set(cacheKey, url);
+          return url;
+        });
+
+    return fetchAudio.then((url) => new Promise((resolve, reject) => {
+      const audio = new Audio(url);
+      currentAudio = audio;
+      if (pitch !== 1) {
+        // Approximates the pitch nudge used to distinguish rep vs. manager
+        // voices without needing a second ElevenLabs voice configured.
+        audio.preservesPitch = false;
+        audio.mozPreservesPitch = false;
+        audio.webkitPreservesPitch = false;
+        audio.playbackRate = pitch;
+      }
+      const clear = () => { if (currentAudio === audio) currentAudio = null; };
+      audio.onended = () => { clear(); resolve(); };
+      audio.onerror = () => { clear(); reject(new Error("Audio playback failed")); };
+      audio.play().catch((e) => { clear(); reject(e); });
+    }));
+  }
+
+  function speak(text, langCode, { pitch = 1, cacheKey = null } = {}) {
+    if (state.recognizing) recognizer && recognizer.stop();
+    state.speaking = true;
+    updateMicAvailability();
+
+    const run = state.elevenlabsEnabled
+      ? speakElevenLabs(text, { pitch, cacheKey }).catch(() => speakBrowser(text, langCode, { pitch }))
+      : speakBrowser(text, langCode, { pitch });
+
+    return run.finally(() => {
+      state.speaking = false;
+      updateMicAvailability();
     });
   }
 
   function stopAllSpeech() {
     if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+    if (currentAudio) { currentAudio.pause(); currentAudio = null; }
     state.playbackStopRequested = true;
     state.playbackPlaying = false;
     state.speaking = false;
@@ -340,6 +390,7 @@
   async function checkConfig() {
     try {
       const status = await api("/api/config");
+      state.elevenlabsEnabled = !!status.elevenlabs_configured;
       if (!status.configured) openKeyModal(false);
     } catch (e) { /* ignore — user can still open settings manually */ }
   }
@@ -530,7 +581,7 @@
       state.messages.push(reply);
       renderChat();
       if ($("#opt-autoplay").checked) {
-        speak(reply.text, currentSpeechLang());
+        speak(reply.text, currentSpeechLang(), { cacheKey: reply.id });
       }
     } catch (e) {
       typingEl.remove();
@@ -547,7 +598,7 @@
       const msg = messages.find((m) => String(m.id) === speakBtn.dataset.id);
       if (msg) {
         speakBtn.classList.add("speaking");
-        await speak(msg.text, currentSpeechLang(), { pitch: msg.role === "user" ? 1.08 : 0.95 });
+        await speak(msg.text, currentSpeechLang(), { pitch: msg.role === "user" ? 1.08 : 0.95, cacheKey: msg.id });
         speakBtn.classList.remove("speaking");
       }
       return;
@@ -623,7 +674,7 @@
       if (state.playbackStopRequested) break;
       const row = $(`#playback-log .bubble-row[data-id="${msg.id}"]`);
       if (row) row.querySelector(".bubble").style.outline = "2px solid var(--accent)";
-      await speak(msg.text, currentSpeechLang(), { pitch: msg.role === "user" ? 1.08 : 0.95 });
+      await speak(msg.text, currentSpeechLang(), { pitch: msg.role === "user" ? 1.08 : 0.95, cacheKey: msg.id });
       if (row) row.querySelector(".bubble").style.outline = "none";
     }
 
@@ -670,6 +721,7 @@
     $("#btn-stop-all").addEventListener("click", () => {
       state.playbackStopRequested = true;
       if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+      if (currentAudio) { currentAudio.pause(); currentAudio = null; }
       $("#btn-play-all").hidden = false;
       $("#btn-stop-all").hidden = true;
     });
