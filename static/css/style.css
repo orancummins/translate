@@ -507,3 +507,6 @@ select:focus, textarea:focus, input:focus {
 
 /* key box wording: on your own machine keys go in .env; on a shared server they stay in the browser */
 body:not([data-key-mode="visitor"]) .only-visitor, body[data-key-mode="visitor"] .only-server { display: none; }
+
+.btn-link { background: none; border: 0; padding: 0; margin: -4px 0 8px; font: inherit; font-size: 13px; color: inherit; opacity: .8; text-decoration: underline; cursor: pointer; }
+.btn-link:hover { opacity: 1; }

@@ -71,6 +71,12 @@ def api_set_config():
     """Check the keys a visitor pasted. On your own machine (server mode) they are saved to .env; on a shared server
     (visitor mode) nothing is stored: the browser keeps them."""
     payload = request.get_json(silent=True) or {}
+    if payload.get("clear_elevenlabs"):                     # back to the browser's voices
+        if not VISITOR:
+            from dotenv import unset_key
+            unset_key(str(ENV_PATH), "ELEVENLABS_API_KEY")
+            os.environ.pop("ELEVENLABS_API_KEY", None)
+        return jsonify({"ok": True, "voice": False})
     api_key = (payload.get("api_key") or "").strip()
     voice_key = (payload.get("elevenlabs_key") or "").strip()
     if not api_key and not voice_key:

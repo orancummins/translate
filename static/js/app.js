@@ -200,7 +200,13 @@
           headers: keyHeaders(),
           body: JSON.stringify({ text, role }),   // the server speaks your own lines in a second voice
         }).then((res) => {
-          if (!res.ok) throw new Error(`TTS request failed (${res.status})`);
+          if (!res.ok) {
+            if ([401, 402, 403, 404, 429].includes(res.status) || res.status === 502) {   // no key, a bad key, or no credit: stop trying for this visit
+              if (state.elevenlabsEnabled) showToast("Using your browser's voices (the ElevenLabs voice is unavailable).");
+              state.elevenlabsEnabled = false;
+            }
+            throw new Error(`TTS request failed (${res.status})`);
+          }
           return res.blob();
         }).then((blob) => {
           const url = URL.createObjectURL(blob);
@@ -424,7 +430,8 @@
     $("#key-input").value = "";
     $("#voice-key-input").value = "";
     $("#key-input").placeholder = keyState.claude ? "Saved. Paste a new one to replace it" : "sk-ant-...";
-    $("#voice-key-input").placeholder = keyState.voice ? "Saved. Paste a new one to replace it" : "Optional: your ElevenLabs API key";
+    $("#voice-key-input").placeholder = keyState.voice ? "Saved. Paste a new one to replace it" : "Optional: leave blank for browser voices";
+    $("#btn-clear-voice").hidden = !keyState.voice;
     $("#key-error").hidden = true;
     $("#btn-close-key-modal").hidden = !dismissible;
     $("#key-input").focus();
@@ -432,6 +439,17 @@
 
   function closeKeyModal() {
     $("#key-modal").hidden = true;
+  }
+
+  async function clearVoiceKey() {                       // back to the browser's own voices
+    try {
+      if (keyState.mode === "visitor") store.set("tr_eleven_key", "");
+      else await api("/api/config", { method: "POST", body: JSON.stringify({ clear_elevenlabs: true }) });
+      keyState.voice = false; state.elevenlabsEnabled = false;
+      $("#btn-clear-voice").hidden = true;
+      $("#voice-key-input").placeholder = "Optional: leave blank for browser voices";
+      showToast("ElevenLabs key removed. Using your browser's voices.");
+    } catch (e) { showToast(e.message); }
   }
 
   async function saveKey() {
@@ -731,6 +749,7 @@
     $("#nav-new").addEventListener("click", () => setView("setup"));
     $("#nav-history").addEventListener("click", () => setView("history"));
     $("#nav-settings").addEventListener("click", () => openKeyModal(true));
+    $("#btn-clear-voice").addEventListener("click", clearVoiceKey);
     $("#btn-close-key-modal").addEventListener("click", closeKeyModal);
     $("#btn-save-key").addEventListener("click", saveKey);
     $("#key-input").addEventListener("keydown", (e) => {

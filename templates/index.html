@@ -170,7 +170,8 @@
         <label for="voice-key-input">ElevenLabs API key <span class="muted">(optional)</span></label>
         <input type="password" id="voice-key-input" placeholder="Optional: your ElevenLabs API key" autocomplete="off" spellcheck="false">
       </div>
-      <p class="hint">With an ElevenLabs key, replies are spoken in a natural voice; without one, your browser's own voices are used. Create one at <a href="https://elevenlabs.io/app/settings/api-keys" target="_blank" rel="noopener">elevenlabs.io → Settings → API keys</a> with Text to Speech allowed.</p>
+      <button class="btn-link" id="btn-clear-voice" type="button" hidden>Remove it and use the browser's voices</button>
+      <p class="hint">Leave this blank to use your browser's built-in voices (free). With an ElevenLabs key, replies are spoken in a natural voice instead. Create one at <a href="https://elevenlabs.io/app/settings/api-keys" target="_blank" rel="noopener">elevenlabs.io → Settings → API keys</a> with Text to Speech allowed.</p>
       <p class="modal-error" id="key-error" hidden></p>
       <button class="btn primary big" id="btn-save-key" type="button">
         <span class="btn-label">Save &amp; Continue</span>
