@@ -4,8 +4,9 @@ The key comes from the visitor's own request (visitor mode: the X-ElevenLabs-Key
 .env (server mode, the owner's machine). With no key, /api/tts says so and the browser falls back to its own voices.
 Audio is cached in data/tts_cache by voice, model and text, so a line already spoken costs nothing the second time.
 
-Voices (set in .env to change them): ELEVENLABS_VOICE_MANAGER for the other side of the call, ELEVENLABS_VOICE_USER for
-your own lines when a call is replayed. eleven_multilingual_v2 speaks English and Spanish with the same voice."""
+Voices (set in .env to change them): ELEVENLABS_VOICE_MANAGER (or ELEVENLABS_VOICE_ID) for the other side of the call,
+ELEVENLABS_VOICE_USER for your own lines when a call is replayed; ELEVENLABS_MODEL_ID picks the model.
+eleven_multilingual_v2 speaks English and Spanish with the same voice."""
 import hashlib
 import json
 import os
@@ -21,9 +22,9 @@ except ImportError:
     _TLS = ssl.create_default_context()
 
 CACHE = Path(__file__).parent / "data" / "tts_cache"
-MODEL = os.environ.get("ELEVENLABS_MODEL", "eleven_multilingual_v2")
+MODEL = os.environ.get("ELEVENLABS_MODEL_ID") or os.environ.get("ELEVENLABS_MODEL", "eleven_multilingual_v2")
 VOICES = {
-    "assistant": os.environ.get("ELEVENLABS_VOICE_MANAGER", "21m00Tcm4TlvDq8ikWAM"),   # "Rachel", a premade voice every account has
+    "assistant": os.environ.get("ELEVENLABS_VOICE_MANAGER") or os.environ.get("ELEVENLABS_VOICE_ID", "21m00Tcm4TlvDq8ikWAM"),   # "Rachel", a premade voice every account has
     "user": os.environ.get("ELEVENLABS_VOICE_USER", "pNInz6obpgDQGcFmaJgB"),           # "Adam"
 }
 API = "https://api.elevenlabs.io/v1"

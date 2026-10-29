@@ -66,6 +66,39 @@ Claude is used for the actual intelligence: playing the manager persona,
 inventing each scenario (hotel name, manager name, situation), and
 on-demand translation of any line between English and Spanish.
 
+### Optional: higher-quality voices via ElevenLabs
+
+For noticeably more natural, less robotic speech than any browser/OS voice,
+set `ELEVENLABS_API_KEY` (see [Configuration](#configuration)) and the app
+automatically switches to [ElevenLabs](https://elevenlabs.io)'s neural
+text-to-speech instead — the browser's `speechSynthesis` becomes the
+fallback if that key is missing or a request ever fails, so nothing breaks
+if you don't set it up.
+
+This is entirely optional and off by default. If you turn it on:
+
+- **Cost**: billed per character by your ElevenLabs plan (roughly $5/mo for
+  ~30,000 characters, up to ~$22/mo for ~100,000 — see
+  [elevenlabs.io/pricing](https://elevenlabs.io/pricing), which changes over
+  time, so check current tiers before subscribing). A typical practice call
+  only synthesizes the manager's few short replies — a few hundred
+  characters — so even daily use over a short interview-prep window should
+  comfortably fit the free or cheapest paid tier. Each line is cached in the
+  browser per saved message, so replaying the same call (e.g. "Play whole
+  conversation") doesn't re-bill it.
+- **How it works**: on your own machine (`./run.sh`) the server calls ElevenLabs
+  with the key in `.env`, so the key never reaches the browser. On a shared
+  server (`./serve.sh`, visitor mode) each visitor's own key stays in their
+  browser and comes with the request; the server never stores it. Either way
+  the MP3 is also cached on the server in `data/tts_cache/`, so a line spoken
+  once is free afterwards.
+- **Picking a voice**: defaults to a stable general-purpose ElevenLabs voice
+  across every locale (English and all four Spanish ones). To use a
+  different voice — e.g. one of ElevenLabs' native Spanish voices from their
+  Voice Library — copy its Voice ID from the ElevenLabs dashboard and set
+  `ELEVENLABS_VOICE_ID` (or `ELEVENLABS_VOICE_MANAGER`); `ELEVENLABS_VOICE_USER`
+  sets the voice for your own lines when a call is replayed.
+
 ## Install on a Mac (no coding experience needed)
 
 These steps get the app running on a Mac from scratch — you don't need to
@@ -176,6 +209,9 @@ starting the app.
 | `CLAUDE_TRANSLATE_MODEL` | `claude-haiku-4-5` | Cheaper/faster model used only for the optional line translations |
 | `PORT` | `5050` | Port Flask listens on |
 | `BRAND` | `tripadvisor` | Which demo to run: `tripadvisor` (hotel sales) or `oyster` (global employment/EOR sales) |
+| `ELEVENLABS_API_KEY` | — | Optional — enables higher-quality ElevenLabs voices; see [Optional: higher-quality voices via ElevenLabs](#optional-higher-quality-voices-via-elevenlabs) |
+| `ELEVENLABS_VOICE_ID` | `21m00Tcm4TlvDq8ikWAM` | Optional — which ElevenLabs voice to use for every locale |
+| `ELEVENLABS_MODEL_ID` | `eleven_multilingual_v2` | Optional — which ElevenLabs TTS model to use |
 
 ## Running a different company demo
 
@@ -233,7 +269,7 @@ static/js/         app logic, Web Speech API integration
 data/               SQLite database file (gitignored)
 ```
 
-## Voice: ElevenLabs, with the browser as the fallback
+## Voice settings at a glance
 
 With an ElevenLabs key, the manager's replies (and your own lines when you replay a call) are spoken by ElevenLabs'
 `eleven_multilingual_v2` model, which handles English and Spanish in the same voice. The audio is cached in

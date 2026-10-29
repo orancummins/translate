@@ -62,8 +62,8 @@ def api_options():
 @app.get("/api/config")
 def api_get_config():
     if VISITOR:
-        return jsonify({"mode": "visitor", "configured": bool(g.claude_key), "voice": bool(g.voice_key)})
-    return jsonify({"mode": "server", "configured": claude_client.is_configured(), "voice": bool(g.voice_key)})
+        return jsonify({"mode": "visitor", "configured": bool(g.claude_key), "voice": bool(g.voice_key), "elevenlabs_configured": bool(g.voice_key)})
+    return jsonify({"mode": "server", "configured": claude_client.is_configured(), "voice": bool(g.voice_key), "elevenlabs_configured": bool(g.voice_key)})
 
 
 @app.post("/api/config")
